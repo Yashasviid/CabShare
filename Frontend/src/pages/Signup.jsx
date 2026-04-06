@@ -15,6 +15,7 @@ const EyeIcon = ({ open }) => open ? (
 const Signup = () => {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({ name: "", phone: "", gender: "", password: "" });
+  const [nameError, setNameError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [showPasswordError, setShowPasswordError] = useState(false);
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
@@ -30,6 +31,16 @@ const Signup = () => {
     lowercase: /[a-z]/.test(formData.password),
     number:    /\d/.test(formData.password),
     special:   /[@$!%*?&]/.test(formData.password),
+  };
+
+  const handleNameChange = (e) => {
+    const val = e.target.value;
+    if (/\d/.test(val)) {
+      setNameError("Name cannot contain numbers");
+    } else {
+      setNameError("");
+    }
+    setFormData({ ...formData, name: val.replace(/\d/g, "") });
   };
 
   const sendOTP = async (selectedRole) => {
@@ -99,9 +110,18 @@ const Signup = () => {
               {/* Name */}
               <div>
                 <label>Full Name</label>
-                <input type="text" className="input-field" placeholder="Your full name"
+                <input
+                  type="text"
+                  className="input-field"
+                  placeholder="Your full name"
                   value={formData.name}
-                  onChange={e => setFormData({ ...formData, name: e.target.value })} />
+                  onChange={handleNameChange}
+                />
+                {nameError && (
+                  <p style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>
+                    {nameError}
+                  </p>
+                )}
               </div>
 
               {/* Phone */}
