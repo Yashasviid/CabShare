@@ -46,7 +46,6 @@ const statusColor = (s) => {
   return { bg: "rgba(99,102,241,0.08)", color: "var(--primary)", border: "rgba(99,102,241,0.2)" };
 };
 
-// ── Driver info block shown inside each history card ──────────────────────
 const DriverInfoRow = ({ ride }) => {
   if (!ride) return null;
   const driver  = ride.driverId || {};
@@ -63,7 +62,6 @@ const DriverInfoRow = ({ ride }) => {
       display: "flex", alignItems: "center", justifyContent: "space-between",
       flexWrap: "wrap", gap: "10px",
     }}>
-      {/* Avatar + name + rating + vehicle */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         <div style={{
           width: "38px", height: "38px", borderRadius: "10px",
@@ -84,8 +82,6 @@ const DriverInfoRow = ({ ride }) => {
           )}
         </div>
       </div>
-
-      {/* Fare + call button */}
       <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
         {ride.fare && (
           <div style={{ textAlign: "center" }}>
@@ -108,10 +104,15 @@ const DriverInfoRow = ({ ride }) => {
   );
 };
 
-// ─────────────────────────────────────────────────────────────────────────────
-
 const PassengerDashboard = () => {
   const navigate = useNavigate();
+
+  // ── Get current user gender from session ──────────────────────────────────
+  const currentUser = (() => {
+    try { return JSON.parse(sessionStorage.getItem("user") || "{}"); }
+    catch { return {}; }
+  })();
+  const isFemale = currentUser?.gender?.toLowerCase() === "female";
 
   const [filters,      setFilters]      = useState({ source: "", destination: "", womenOnly: false, seats: 1 });
   const [suggestions,  setSuggestions]  = useState([]);
@@ -172,11 +173,21 @@ const PassengerDashboard = () => {
     try {
       const res = await API.get("/rides", { params: { source: filters.source, destination: filters.destination } });
       const filtered = res.data.filter(ride => {
-        const src = ride.source.toLowerCase().includes(filters.source.toLowerCase());
-        const dst = ride.destination.toLowerCase().includes(filters.destination.toLowerCase());
-        const w   = filters.womenOnly ? ride.womenOnly === true : true;
-        return src && dst && w;
+        // Source & destination match
+        const srcMatch = ride.source.toLowerCase().includes(filters.source.toLowerCase());
+        const dstMatch = ride.destination.toLowerCase().includes(filters.destination.toLowerCase());
+
+        // ── Women-only filter logic ───────────────────────────────────────
+        // 1. If ride is women-only AND current user is NOT female → always hide
+        if (ride.womenOnly && !isFemale) return false;
+
+        // 2. If user toggled the women-only filter checkbox → show only women-only rides
+        const womenFilter = filters.womenOnly ? ride.womenOnly === true : true;
+        // ─────────────────────────────────────────────────────────────────
+
+        return srcMatch && dstMatch && womenFilter;
       });
+
       setMatchedRides(filtered);
       setSearched(true);
     } catch (error) { console.error(error); }
@@ -192,7 +203,6 @@ const PassengerDashboard = () => {
     }
   };
 
-  // ── Dropdown helper ────────────────────────────────────────────────────────
   const Dropdown = ({ field }) =>
     activeField === field && suggestions.length > 0 ? (
       <div style={{ position: "absolute", top: "100%", left: 0, right: 0, background: "var(--bg, #fff)", border: "1px solid rgba(99,102,241,0.2)", borderRadius: "8px", zIndex: 10, maxHeight: "160px", overflowY: "auto", boxShadow: "0 8px 24px rgba(0,0,0,0.12)" }}>
@@ -304,10 +314,20 @@ const PassengerDashboard = () => {
                   </div>
                 </div>
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
-                  <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" }}>
-                    <input type="checkbox" checked={filters.womenOnly} onChange={e => setFilters(p => ({ ...p, womenOnly: e.target.checked }))} />
-                    <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>Women-only rides</span>
-                  </label>
+
+                  {/* Women-only checkbox — only show to female users */}
+                  {isFemale ? (
+                    <label style={{ display: "flex", alignItems: "center", gap: "10px", cursor: "pointer", userSelect: "none" }}>
+                      <input type="checkbox" checked={filters.womenOnly} onChange={e => setFilters(p => ({ ...p, womenOnly: e.target.checked }))} />
+                      <span style={{ color: "var(--text-secondary)", fontStyle: "italic" }}>Women-only rides</span>
+                    </label>
+                  ) : (
+                    // Non-female users see an informational note instead
+                    <span style={{ fontSize: "0.75rem", color: "var(--text-muted)", fontStyle: "italic" }}>
+                      🔒 Women-only rides are hidden for your profile
+                    </span>
+                  )}
+
                   <button className="btn-primary" onClick={handleSearch} disabled={searching} style={{ width: "auto", minWidth: "140px" }}>
                     {searching ? <span style={{ display: "flex", alignItems: "center", gap: "8px" }}><span className="spinner" />Searching...</span> : "Search Rides"}
                   </button>
@@ -336,6 +356,12 @@ const PassengerDashboard = () => {
                   <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                     {matchedRides.map(ride => (
                       <div key={ride._id} className="glass-card ride-card" style={{ padding: "1.5rem" }}>
+                        {/* Women-only badge */}
+                        {ride.womenOnly && (
+                          <div style={{ display: "inline-flex", alignItems: "center", gap: "5px", padding: "3px 10px", borderRadius: "100px", background: "rgba(236,72,153,0.08)", border: "1px solid rgba(236,72,153,0.22)", color: "#ec4899", fontSize: "0.68rem", fontWeight: 600, marginBottom: "10px" }}>
+                            ♀ Women-only ride
+                          </div>
+                        )}
                         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "1rem" }}>
                           <div style={{ flex: 1, minWidth: "200px", display: "flex", alignItems: "center", gap: "12px" }}>
                             <div>
@@ -406,8 +432,6 @@ const PassengerDashboard = () => {
                   const ride = b.rideId || {};
                   return (
                     <div key={b._id} className="glass-card" style={{ padding: "1.4rem 1.6rem" }}>
-
-                      {/* Route + status */}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "10px" }}>
                         <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
                           <span style={{ fontWeight: 700, color: "var(--cream)", fontSize: "1rem" }}>{ride.source || "—"}</span>
@@ -420,8 +444,6 @@ const PassengerDashboard = () => {
                           {b.status}
                         </span>
                       </div>
-
-                      {/* Date · time · seats · fare · women-only */}
                       <div style={{ display: "flex", gap: "14px", flexWrap: "wrap", fontSize: "0.75rem", color: "var(--text-muted)" }}>
                         {ride.date      && <span>📅 {ride.date}</span>}
                         {ride.time      && <span>⏰ {ride.time}</span>}
@@ -429,10 +451,7 @@ const PassengerDashboard = () => {
                         {ride.fare      && <span>💰 ₹{ride.fare} / seat</span>}
                         {ride.womenOnly && <span style={{ color: "#ec4899" }}>♀ Women-only</span>}
                       </div>
-
-                      {/* Driver info card */}
                       <DriverInfoRow ride={ride} />
-
                     </div>
                   );
                 })}
