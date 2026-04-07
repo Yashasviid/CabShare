@@ -285,7 +285,7 @@ const Profile = () => {
               <input className="input-field" value={user?.email || ""} disabled
                 style={{ opacity: 0.6, cursor: "not-allowed" }} />
               <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "5px" }}>
-                Email verified via OTP — cannot be changed here
+                Email verified - cannot be changed here
               </p>
             </div>
 
