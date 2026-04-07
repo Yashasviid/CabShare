@@ -43,6 +43,20 @@ const RatingModal = ({ rideId, ratedUserId, ratedUserName, role, onClose, onSubm
     setLoading(true);
     try {
       await API.post("/ratings/submit", { rideId, ratedUserId, rating, review });
+
+      // ── Refresh current user's own rating in sessionStorage ──────────
+      // So Profile page shows updated stats without a hard reload
+      try {
+        const meRes = await API.get("/users/me");
+        const freshUser = meRes.data.user || meRes.data;
+        if (freshUser) {
+          sessionStorage.setItem("user", JSON.stringify(freshUser));
+        }
+      } catch (_) {
+        // non-critical — profile will refresh on next load
+      }
+      // ─────────────────────────────────────────────────────────────────
+
       onSubmitted?.();
       onClose();
     } catch (e) {
@@ -94,19 +108,13 @@ const RatingModal = ({ rideId, ratedUserId, ratedUserName, role, onClose, onSubm
         </div>
 
         {/* Title */}
-        <h2 style={{
-          fontWeight: 700, color: "#1a1a2e",
-          fontSize: "1.25rem", marginBottom: "0.3rem",
-        }}>
+        <h2 style={{ fontWeight: 700, color: "#1a1a2e", fontSize: "1.25rem", marginBottom: "0.3rem" }}>
           Rate your {role}
         </h2>
-
         <p style={{ color: "#6b7280", fontSize: "0.875rem", marginBottom: "0.15rem" }}>
           How was your experience with
         </p>
-        <p style={{
-          color: "#111827", fontWeight: 700, fontSize: "1.05rem", marginBottom: "0.5rem",
-        }}>
+        <p style={{ color: "#111827", fontWeight: 700, fontSize: "1.05rem", marginBottom: "0.5rem" }}>
           {ratedUserName}?
         </p>
 
@@ -144,10 +152,9 @@ const RatingModal = ({ rideId, ratedUserId, ratedUserName, role, onClose, onSubm
         />
 
         {error && (
-          <p style={{
-            color: "#ef4444", fontSize: "0.8rem",
-            marginTop: "8px", marginBottom: "0",
-          }}>{error}</p>
+          <p style={{ color: "#ef4444", fontSize: "0.8rem", marginTop: "8px", marginBottom: "0" }}>
+            {error}
+          </p>
         )}
 
         {/* Buttons */}

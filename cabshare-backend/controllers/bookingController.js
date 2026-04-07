@@ -2,7 +2,10 @@
 const Booking = require("../models/Booking");
 const Ride    = require("../models/Ride");
 
-// ── All bookings for the logged-in passenger ──────────────────────────────
+const DRIVER_FIELDS    = "name phone profilePicture vehicleModel vehicleColor vehicleNumber averageRating totalRatings";
+const PASSENGER_FIELDS = "name phone gender profilePicture averageRating totalRatings";
+
+// ── All bookings for the logged-in passenger (used for live polling) ───────
 exports.getMyBookings = async (req, res) => {
   try {
     const bookings = await Booking.find({ passengerId: req.user.id })
@@ -10,7 +13,7 @@ exports.getMyBookings = async (req, res) => {
         path: "rideId",
         populate: {
           path: "driverId",
-          select: "name phone profilePic",   // ← added profilePic
+          select: DRIVER_FIELDS,
         },
       })
       .sort({ createdAt: -1 });
@@ -18,8 +21,8 @@ exports.getMyBookings = async (req, res) => {
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
 
-// ── Ride history: completed + cancelled bookings for passenger ────────────
-exports.getMyHistory = async (req, res) => {
+// ── Passenger history ─────────────────────────────────────────────────────
+exports.getPassengerHistory = async (req, res) => {
   try {
     const bookings = await Booking.find({
       passengerId: req.user.id,
@@ -29,25 +32,26 @@ exports.getMyHistory = async (req, res) => {
         path: "rideId",
         populate: {
           path: "driverId",
-          select: "name phone profilePic",   // ← added profilePic
+          select: DRIVER_FIELDS,
         },
       })
       .sort({ createdAt: -1 });
     res.json(bookings);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    console.error("getPassengerHistory error:", err);
+    res.status(500).json({ message: err.message });
+  }
 };
 
-// ── Driver history: completed + cancelled rides ───────────────────────────
+// ── Driver history ────────────────────────────────────────────────────────
 exports.getDriverHistory = async (req, res) => {
   try {
-    const rides = await Ride.find({
-      driverId: req.user.id,
-      status: { $in: ["completed", "cancelled"] },
-    }).sort({ createdAt: -1 });
+    const rides = await Ride.find({ driverId: req.user.id })
+      .sort({ createdAt: -1 });
 
     const rideIds = rides.map(r => r._id);
     const bookings = await Booking.find({ rideId: { $in: rideIds } })
-      .populate("passengerId", "name gender phone profilePic");
+      .populate("passengerId", PASSENGER_FIELDS);
 
     const bookingMap = {};
     bookings.forEach(b => {
@@ -56,19 +60,23 @@ exports.getDriverHistory = async (req, res) => {
       bookingMap[key].push(b);
     });
 
-    const result = rides.map(r => ({
-      ...r.toObject(),
-      passengers: bookingMap[r._id.toString()] || [],
+    const result = rides.map(ride => ({
+      ...ride.toObject(),
+      passengers: bookingMap[ride._id.toString()] || [],
     }));
 
     res.json(result);
-  } catch (err) { res.status(500).json({ message: err.message }); }
+  } catch (err) {
+    console.error("getDriverHistory error:", err);
+    res.status(500).json({ message: err.message });
+  }
 };
 
+// ── Bookings for a specific ride (driver dashboard live requests) ──────────
 exports.getBookingsByRide = async (req, res) => {
   try {
     const bookings = await Booking.find({ rideId: req.params.rideId })
-      .populate("passengerId", "name gender phone profilePic");
+      .populate("passengerId", PASSENGER_FIELDS);
     res.json(bookings);
   } catch (err) { res.status(500).json({ message: err.message }); }
 };
@@ -156,66 +164,9 @@ exports.sendMessage = async (req, res) => {
       timestamp:  new Date(),
     });
     await booking.save();
-
     res.json(booking.messages);
   } catch (err) {
     console.error("sendMessage error:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-// Add this to your bookingController.js
-// GET /api/bookings/history/passenger
-exports.getPassengerHistory = async (req, res) => {
-  try {
-    const bookings = await Booking.find({
-      passengerId: req.user.id,
-      status: { $in: ["completed", "cancelled"] },
-    })
-      .populate({
-        path: "rideId",
-        populate: {
-          path: "driverId",
-          select: "name phone averageRating totalRatings", // ← driver fields passenger needs
-        },
-      })
-      .sort({ createdAt: -1 });
-
-    res.json(bookings);
-  } catch (err) {
-    console.error("getPassengerHistory error:", err);
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ─── Also fix getDriverHistory so vehicle fields come through ────────────────
-// GET /api/bookings/history/driver
-exports.getDriverHistory = async (req, res) => {
-  try {
-    // Find all rides owned by this driver
-    const rides = await Ride.find({ driverId: req.user.id })
-      .sort({ createdAt: -1 });
-
-    // For each ride, attach its bookings (passengers)
-    const rideIds = rides.map(r => r._id);
-    const bookings = await Booking.find({ rideId: { $in: rideIds } })
-      .populate("passengerId", "name phone gender averageRating totalRatings");
-
-    // Group bookings by rideId
-    const bookingMap = {};
-    bookings.forEach(b => {
-      const key = b.rideId.toString();
-      if (!bookingMap[key]) bookingMap[key] = [];
-      bookingMap[key].push(b);
-    });
-
-    const result = rides.map(ride => ({
-      ...ride.toObject(),
-      passengers: bookingMap[ride._id.toString()] || [],
-    }));
-
-    res.json(result);
-  } catch (err) {
-    console.error("getDriverHistory error:", err);
     res.status(500).json({ message: err.message });
   }
 };

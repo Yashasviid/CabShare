@@ -1,5 +1,8 @@
+// controllers/rideController.js
 const Ride    = require("../models/Ride");
 const Booking = require("../models/Booking");
+
+const DRIVER_FIELDS = "name phone profilePicture vehicleModel vehicleColor vehicleNumber averageRating totalRatings";
 
 // ── Create ride (driver) ──────────────────────────────────────────────────
 exports.createRide = async (req, res) => {
@@ -23,11 +26,12 @@ exports.getRides = async (req, res) => {
         driverId: req.user.id,
         status: { $in: ["active", "started"] },
       })
-      // In your GET /rides route, ensure you have:
-      .populate("driverId", "name phone profilePic averageRating totalRatings")
-      .sort({ createdAt: -1 });
+        .populate("driverId", DRIVER_FIELDS)
+        .sort({ createdAt: -1 });
     } else {
-      rides = await Ride.find({ status: "active" }).sort({ createdAt: -1 });
+      rides = await Ride.find({ status: "active" })
+        .populate("driverId", DRIVER_FIELDS)
+        .sort({ createdAt: -1 });
     }
     res.json(rides);
   } catch (error) {

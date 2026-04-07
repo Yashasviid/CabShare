@@ -27,6 +27,21 @@ const statusColor = (s) => {
   return { bg: "rgba(99,102,241,0.08)", color: "var(--primary)", border: "rgba(99,102,241,0.2)" };
 };
 
+const StarRating = ({ rating, total }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "4px" }}>
+    {[1, 2, 3, 4, 5].map(s => (
+      <span key={s} style={{ color: s <= Math.round(rating) ? "#f59e0b" : "rgba(150,150,150,0.35)", fontSize: "0.75rem" }}>★</span>
+    ))}
+    {rating > 0 ? (
+      <>
+        <span style={{ fontWeight: 700, color: "var(--text)", fontSize: "0.78rem", marginLeft: "4px" }}>{rating.toFixed(1)}</span>
+      </>
+    ) : (
+      <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginLeft: "4px" }}>No ratings yet</span>
+    )}
+  </div>
+);
+
 const MessageButton = ({ onClick, unread = 0, label = "Message" }) => (
   <button onClick={onClick} style={{
     position: "relative", padding: "6px 14px", borderRadius: "7px",
@@ -120,7 +135,7 @@ const DriverDashboard = () => {
   const [history,        setHistory]        = useState([]);
   const [historyLoading, setHistoryLoading] = useState(false);
   const [unreadMap,      setUnreadMap]      = useState({});
-  const [ratingModal,    setRatingModal]    = useState(null); // { rideId, ratedUserId, ratedUserName }
+  const [ratingModal,    setRatingModal]    = useState(null);
 
   const trackedActiveRef     = useRef(null);
   const [cancelledPassenger, setCancelledPassenger] = useState(null);
@@ -249,7 +264,6 @@ const DriverDashboard = () => {
     } catch (err) { alert(err.response?.data?.message || "Cancel failed"); }
   };
 
-  // ── Updated endRide: show rating modal for first passenger ───────────────
   const endRide = async () => {
     if (!ride?._id) return;
     setEnding(true);
@@ -258,7 +272,6 @@ const DriverDashboard = () => {
         await API.put(`/bookings/${r._id}`, { status: "completed" });
       await API.put(`/rides/${ride._id}/complete`);
 
-      // Show rating modal for first passenger if available
       const firstPassenger = activeRequests[0];
       if (firstPassenger?.passengerId?._id) {
         setRatingModal({
@@ -355,14 +368,12 @@ const DriverDashboard = () => {
                                 <div style={{ fontSize: "0.68rem", color: "var(--text-muted)" }}>
                                   {r.passengerId?.gender || ""}{r.passengerId?.gender ? "  ·  " : ""}{r.seatsBooked} seat{r.seatsBooked !== 1 ? "s" : ""}
                                 </div>
-                                {/* ── Passenger avg rating ── */}
-                                {r.passengerId?.averageRating > 0 && (
-                                  <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "4px" }}>
-                                    <span style={{ color: "#f59e0b", fontSize: "0.85rem" }}>★</span>
-                                    <span style={{ fontWeight: 700, color: "var(--text)", fontSize: "0.8rem" }}>{r.passengerId.averageRating.toFixed(1)}</span>
-                                    <span style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>({r.passengerId.totalRatings})</span>
-                                  </div>
-                                )}
+                                {/* ── Passenger rating — always shown ── */}
+                                <StarRating
+                                  rating={r.passengerId?.averageRating || 0}
+                                  total={r.passengerId?.totalRatings || 0}
+                                  newLabel="New passenger"
+                                />
                               </div>
                             </div>
                             {(r.status === "accepted" || r.status === "started") && (
@@ -522,13 +533,11 @@ const DriverDashboard = () => {
                                   <div style={{ fontSize: "0.65rem", color: "var(--text-muted)" }}>
                                     {b.passengerId?.gender || ""}{b.seatsBooked && `  ·  ${b.seatsBooked} seat${b.seatsBooked !== 1 ? "s" : ""}`}
                                   </div>
-                                  {/* Passenger rating in history */}
-                                  {b.passengerId?.averageRating > 0 && (
-                                    <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
-                                      <span style={{ color: "#f59e0b", fontSize: "0.8rem" }}>★</span>
-                                      <span style={{ fontWeight: 700, color: "var(--text)", fontSize: "0.75rem" }}>{b.passengerId.averageRating.toFixed(1)}</span>
-                                    </div>
-                                  )}
+                                  <StarRating
+                                    rating={b.passengerId?.averageRating || 0}
+                                    total={b.passengerId?.totalRatings || 0}
+                                    newLabel="New passenger"
+                                  />
                                 </div>
                               </div>
                               {b.passengerId?.phone && (
@@ -600,7 +609,7 @@ const DriverDashboard = () => {
         />
       )}
 
-      {/* Rating modal — shown after end ride */}
+      {/* Rating modal */}
       {ratingModal && (
         <RatingModal
           rideId={ratingModal.rideId}

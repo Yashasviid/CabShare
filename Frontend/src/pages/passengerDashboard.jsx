@@ -173,19 +173,12 @@ const PassengerDashboard = () => {
     try {
       const res = await API.get("/rides", { params: { source: filters.source, destination: filters.destination } });
       const filtered = res.data.filter(ride => {
-        // Source & destination match
         const srcMatch = ride.source.toLowerCase().includes(filters.source.toLowerCase());
         const dstMatch = ride.destination.toLowerCase().includes(filters.destination.toLowerCase());
-
-        // ── Women-only filter logic ───────────────────────────────────────
-        // 1. If ride is women-only AND current user is NOT female → always hide
         if (ride.womenOnly && !isFemale) return false;
-
-        // 2. If user toggled the women-only filter checkbox → show only women-only rides
         const womenFilter = filters.womenOnly ? ride.womenOnly === true : true;
-        // ─────────────────────────────────────────────────────────────────
-
-        return srcMatch && dstMatch && womenFilter;
+        const seatsMatch = ride.seatsAvailable >= filters.seats;  // ← added
+        return srcMatch && dstMatch && womenFilter && seatsMatch;
       });
 
       setMatchedRides(filtered);

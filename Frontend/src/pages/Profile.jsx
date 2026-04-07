@@ -86,6 +86,19 @@ const Profile = () => {
   };
 
   const initial = user?.name?.charAt(0).toUpperCase() || "U";
+  const avg      = user?.averageRating || 0;
+  const total    = user?.totalRatings  || 0;
+  const stars    = Math.round(avg);
+  const ratingLabel =
+    avg >= 4.5 ? "Excellent" :
+    avg >= 4   ? "Great"     :
+    avg >= 3   ? "Good"      :
+    avg >= 2   ? "Fair"      :
+    avg > 0    ? "Poor"      : "";
+  const ratingColor =
+    avg >= 4 ? "#16a34a" :
+    avg >= 3 ? "#d97706" :
+    avg > 0  ? "#ef4444" : "var(--text-muted)";
 
   const lbl = {
     fontSize: "0.72rem", color: "var(--text-muted)",
@@ -110,7 +123,7 @@ const Profile = () => {
           display: "flex", alignItems: "center", gap: "6px",
           padding: 0, width: "fit-content",
         }}>
-          Back
+          ← Back
         </button>
 
         {/* Header */}
@@ -144,7 +157,7 @@ const Profile = () => {
               display: "flex", alignItems: "center", justifyContent: "center",
               fontWeight: 700,
             }}>
-              edit
+              ✎
             </button>
             <input ref={fileRef} type="file" accept="image/*"
               style={{ display: "none" }} onChange={handleImageChange} />
@@ -171,6 +184,74 @@ const Profile = () => {
           </div>
         </div>
 
+        {/* ── Rating Card ───────────────────────────────────────────────────── */}
+        <div className="glass-card fade-up" style={{ padding: "1.5rem 2rem" }}>
+          <p style={{
+            fontSize: "0.72rem", color: "var(--text-muted)",
+            letterSpacing: "0.1em", textTransform: "uppercase",
+            marginBottom: "1rem", fontWeight: 600,
+          }}>
+            Your Rating
+          </p>
+
+          {total === 0 ? (
+            <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+              <div style={{
+                width: "44px", height: "44px", borderRadius: "50%",
+                background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.2)",
+                display: "flex", alignItems: "center", justifyContent: "center", fontSize: "1.3rem",
+              }}>⭐</div>
+              <div>
+                <div style={{ fontWeight: 600, color: "var(--text)", fontSize: "0.9rem" }}>No ratings yet</div>
+                <div style={{ color: "var(--text-muted)", fontSize: "0.78rem", marginTop: "2px" }}>
+                  Complete a ride to receive your first rating
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", flexWrap: "wrap" }}>
+
+              {/* Big number */}
+              <div style={{
+                width: "72px", height: "72px", borderRadius: "16px",
+                background: `${ratingColor}14`,
+                border: `1px solid ${ratingColor}33`,
+                display: "flex", flexDirection: "column",
+                alignItems: "center", justifyContent: "center", flexShrink: 0,
+              }}>
+                <div style={{ fontSize: "1.8rem", fontWeight: 800, color: ratingColor, lineHeight: 1 }}>
+                  {avg.toFixed(1)}
+                </div>
+                <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginTop: "2px" }}>out of 5</div>
+              </div>
+
+              {/* Stars + label + count */}
+              <div>
+                <div style={{ display: "flex", gap: "3px", marginBottom: "5px" }}>
+                  {[1,2,3,4,5].map(s => (
+                    <span key={s} style={{
+                      fontSize: "1.1rem",
+                      color: s <= stars ? "#f59e0b" : "var(--border)",
+                    }}>★</span>
+                  ))}
+                  {ratingLabel && (
+                    <span style={{
+                      marginLeft: "6px", fontSize: "0.75rem", fontWeight: 700,
+                      color: ratingColor, alignSelf: "center",
+                    }}>
+                      {ratingLabel}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: "0.78rem", color: "var(--text-muted)" }}>
+                  Based on {total} rating{total !== 1 ? "s" : ""}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+        {/* ── End Rating Card ───────────────────────────────────────────────── */}
+
         {/* Tabs */}
         <div style={{
           display: "flex", gap: "4px",
@@ -178,7 +259,7 @@ const Profile = () => {
           borderRadius: "var(--radius)", padding: "4px",
         }}>
           {[
-            { key: "profile", label: "Profile" },
+            { key: "profile",  label: "Profile"  },
             { key: "password", label: "Password" },
           ].map(t => (
             <button key={t.key} onClick={() => setTab(t.key)} style={{
@@ -198,7 +279,6 @@ const Profile = () => {
         {tab === "profile" && (
           <div className="glass-card fade-up" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
 
-            {/* Basic info */}
             <div>
               <label style={lbl}>Full Name</label>
               <input className="input-field" value={form.name}
@@ -211,7 +291,7 @@ const Profile = () => {
               <input className="input-field" value={user?.phone || ""} disabled
                 style={{ opacity: 0.6, cursor: "not-allowed" }} />
               <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "5px" }}>
-                Phone verified via OTP - cannot be changed here
+                Phone verified via OTP — cannot be changed here
               </p>
             </div>
 
@@ -297,7 +377,7 @@ const Profile = () => {
             <button onClick={handleSave} disabled={saving} className="btn-primary">
               {saving
                 ? <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "10px" }}><span className="spinner" />Saving...</span>
-                : saved ? "Saved successfully" : "Save Changes"
+                : saved ? "Saved successfully ✓" : "Save Changes"
               }
             </button>
           </div>
@@ -307,9 +387,9 @@ const Profile = () => {
         {tab === "password" && (
           <div className="glass-card fade-up" style={{ padding: "2rem", display: "flex", flexDirection: "column", gap: "1.2rem" }}>
             {[
-              { key: "current", label: "Current Password",     placeholder: "Your current password"  },
-              { key: "newPass", label: "New Password",         placeholder: "Minimum 8 characters"   },
-              { key: "confirm", label: "Confirm New Password", placeholder: "Repeat new password"    },
+              { key: "current", label: "Current Password",     placeholder: "Your current password" },
+              { key: "newPass", label: "New Password",         placeholder: "Minimum 8 characters"  },
+              { key: "confirm", label: "Confirm New Password", placeholder: "Repeat new password"   },
             ].map(({ key, label, placeholder }) => (
               <div key={key}>
                 <label style={lbl}>{label}</label>

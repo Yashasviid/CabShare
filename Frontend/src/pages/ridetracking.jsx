@@ -40,6 +40,23 @@ const ShieldIcon = () => (
   </svg>
 );
 
+// ── Star rating — always shows 5 stars, grayed when no rating ────────────
+const StarRating = ({ rating, total }) => (
+  <div style={{ display: "flex", alignItems: "center", gap: "3px", marginTop: "3px" }}>
+    {[1, 2, 3, 4, 5].map(s => (
+      <span key={s} style={{ color: s <= Math.round(rating) ? "#f59e0b" : "rgba(150,150,150,0.4)", fontSize: "0.75rem" }}>★</span>
+    ))}
+    {rating > 0 ? (
+      <>
+        <span style={{ fontWeight: 700, color: "var(--cream)", fontSize: "0.78rem", marginLeft: "4px" }}>{rating.toFixed(1)}</span>
+    
+      </>
+    ) : (
+      <span style={{ color: "var(--text-muted)", fontSize: "0.7rem", marginLeft: "4px" }}>No ratings yet</span>
+    )}
+  </div>
+);
+
 const MessageButton = ({ onClick, unread = 0, label = "Message", style = {} }) => (
   <button onClick={onClick} style={{
     position: "relative", padding: "8px 16px", borderRadius: "8px",
@@ -54,11 +71,9 @@ const MessageButton = ({ onClick, unread = 0, label = "Message", style = {} }) =
       <span style={{
         position: "absolute", top: "-7px", right: "-7px",
         minWidth: "18px", height: "18px", borderRadius: "100px",
-        background: "#ef4444", color: "white",
-        fontSize: "0.65rem", fontWeight: 700,
+        background: "#ef4444", color: "white", fontSize: "0.65rem", fontWeight: 700,
         display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "0 4px", lineHeight: 1,
-        boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
+        padding: "0 4px", lineHeight: 1, boxShadow: "0 2px 8px rgba(239,68,68,0.5)",
         animation: "pulseDot 1.5s ease-in-out infinite",
       }}>
         {unread > 9 ? "9+" : unread}
@@ -67,13 +82,14 @@ const MessageButton = ({ onClick, unread = 0, label = "Message", style = {} }) =
   </button>
 );
 
-const DriverAvatar = ({ profilePic, name, size = 44 }) => {
+// ← FIXED: prop renamed to profilePicture to match User model field name
+const DriverAvatar = ({ profilePicture, name, size = 44 }) => {
   const initials = name ? name.trim()[0].toUpperCase() : "D";
-  if (profilePic) {
+  if (profilePicture) {
     return (
-      <img src={profilePic} alt={name || "Driver"}
+      <img src={profilePicture} alt={name || "Driver"}
         style={{ width: size, height: size, borderRadius: "12px", objectFit: "cover", border: "1px solid rgba(99,102,241,0.25)" }}
-        onError={e => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }}
+        onError={e => { e.target.style.display = "none"; }}
       />
     );
   }
@@ -86,27 +102,22 @@ const DriverAvatar = ({ profilePic, name, size = 44 }) => {
 
 const DriverInfoCard = ({ ride, onChat, unread }) => {
   if (!ride) return null;
-  const driver      = ride.driverId || {};
-  const driverName  = driver.name  || "Your Driver";
+  const driver     = ride.driverId || {};
+  const driverName = driver.name  || "Your Driver";
   const driverPhone = driver.phone || null;
-  const profilePic  = driver.profilePic || null;
+  // ← FIXED: was driver.profilePic — model field is profilePicture
+  const profilePicture = driver.profilePicture || null;
 
   return (
     <div className="glass-card" style={{ padding: "1.25rem 1.5rem" }}>
       <div style={{ fontSize: "0.65rem", color: "var(--text-muted)", textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: "12px" }}>Your Driver</div>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <DriverAvatar profilePic={profilePic} name={driverName} size={48} />
+          <DriverAvatar profilePicture={profilePicture} name={driverName} size={48} />
           <div>
             <div style={{ fontWeight: 700, color: "var(--cream)", fontSize: "1rem" }}>{driverName}</div>
-            {driver.averageRating > 0 && (
-              <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
-                <span style={{ color: "#f59e0b", fontSize: "0.85rem" }}>★</span>
-                <span style={{ fontWeight: 700, color: "var(--cream)", fontSize: "0.8rem" }}>{driver.averageRating.toFixed(1)}</span>
-                <span style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>({driver.totalRatings})</span>
-              </div>
-            )}
-            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>
+            <StarRating rating={driver.averageRating || 0} total={driver.totalRatings || 0} />
+            <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "4px" }}>
               {[ride.vehicleModel, ride.vehicleNumber, ride.vehicleColor].filter(Boolean).join("  ·  ")}
             </div>
             {driverPhone && <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>📞 {driverPhone}</div>}
@@ -161,7 +172,7 @@ const RideTracking = () => {
   const [unread,          setUnread]          = useState(0);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelling,      setCancelling]      = useState(false);
-  const [ratingModal,     setRatingModal]     = useState(null); // { rideId, ratedUserId, ratedUserName }
+  const [ratingModal,     setRatingModal]     = useState(null);
 
   const navigate = useNavigate();
 
@@ -180,7 +191,6 @@ const RideTracking = () => {
       if (!latest) return;
       if (latest.status === "completed") {
         setRideCompleted(true);
-        // Trigger rating modal for the driver
         const rideData = latest.rideId;
         if (rideData) {
           const driver = rideData.driverId;
@@ -230,7 +240,6 @@ const RideTracking = () => {
   };
 
   const openChat = () => { setShowChat(true); setUnread(0); };
-
   const bookingIdStr = booking?._id?.toString?.() || booking?._id || null;
 
   // ── Ride completed ────────────────────────────────────────────────────────
@@ -301,22 +310,15 @@ const RideTracking = () => {
             </div>
             <div style={{ borderTop: "1px solid rgba(255,255,255,0.07)", paddingTop: "1.1rem", display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
               <p style={{ color: "var(--text-muted)", fontSize: "0.78rem", fontStyle: "italic" }}>Driver not showing up?</p>
-              <button
-                onClick={() => setShowCancelModal(true)}
-                style={{ padding: "8px 22px", background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "8px", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem", transition: "all 0.2s" }}
-                onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.15)"}
-                onMouseLeave={e => e.currentTarget.style.background = "rgba(239,68,68,0.08)"}>
+              <button onClick={() => setShowCancelModal(true)}
+                style={{ padding: "8px 22px", background: "rgba(239,68,68,0.08)", color: "#ef4444", border: "1px solid rgba(239,68,68,0.25)", borderRadius: "8px", cursor: "pointer", fontWeight: 600, fontSize: "0.82rem" }}>
                 Cancel Booking
               </button>
             </div>
           </div>
         </div>
-        {showCancelModal && (
-          <CancelConfirmModal onConfirm={cancelAcceptedBooking} onClose={() => setShowCancelModal(false)} cancelling={cancelling} />
-        )}
-        {showChat && bookingIdStr && (
-          <RideChat bookingId={bookingIdStr} myRole="passenger" myName={passengerName} onClose={() => setShowChat(false)} onUnreadChange={setUnread} />
-        )}
+        {showCancelModal && <CancelConfirmModal onConfirm={cancelAcceptedBooking} onClose={() => setShowCancelModal(false)} cancelling={cancelling} />}
+        {showChat && bookingIdStr && <RideChat bookingId={bookingIdStr} myRole="passenger" myName={passengerName} onClose={() => setShowChat(false)} onUnreadChange={setUnread} />}
       </Wrap>
     );
   }
@@ -338,18 +340,17 @@ const RideTracking = () => {
           </div>
         </div>
       </div>
-      {showChat && bookingIdStr && (
-        <RideChat bookingId={bookingIdStr} myRole="passenger" myName={passengerName} onClose={() => setShowChat(false)} onUnreadChange={setUnread} />
-      )}
+      {showChat && bookingIdStr && <RideChat bookingId={bookingIdStr} myRole="passenger" myName={passengerName} onClose={() => setShowChat(false)} onUnreadChange={setUnread} />}
     </Wrap>
   );
 
   // ── Started — live ride tracking ──────────────────────────────────────────
   if (booking.status === "started") {
-    const driver      = ride?.driverId || {};
-    const driverName  = driver.name  || "Your Driver";
-    const driverPhone = driver.phone || null;
-    const profilePic  = driver.profilePic || null;
+    const driver         = ride?.driverId || {};
+    const driverName     = driver.name  || "Your Driver";
+    const driverPhone    = driver.phone || null;
+    // ← FIXED: was driver.profilePic — model field is profilePicture
+    const profilePicture = driver.profilePicture || null;
 
     return (
       <div style={{ minHeight: "100vh", background: "var(--bg-void)", padding: "24px" }}>
@@ -370,17 +371,11 @@ const RideTracking = () => {
           <div className="glass-card fade-up" style={{ padding: "1rem 1.5rem" }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-                <DriverAvatar profilePic={profilePic} name={driverName} size={48} />
+                <DriverAvatar profilePicture={profilePicture} name={driverName} size={48} />
                 <div>
                   <div style={{ fontWeight: 700, color: "var(--cream)", fontSize: "0.95rem" }}>{driverName}</div>
-                  {driver.averageRating > 0 && (
-                    <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
-                      <span style={{ color: "#f59e0b", fontSize: "0.85rem" }}>★</span>
-                      <span style={{ fontWeight: 700, color: "var(--cream)", fontSize: "0.8rem" }}>{driver.averageRating.toFixed(1)}</span>
-                      <span style={{ color: "var(--text-muted)", fontSize: "0.72rem" }}>({driver.totalRatings})</span>
-                    </div>
-                  )}
-                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)" }}>
+                  <StarRating rating={driver.averageRating || 0} total={driver.totalRatings || 0} />
+                  <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>
                     {[ride?.vehicleModel, ride?.vehicleNumber, ride?.vehicleColor].filter(Boolean).join("  ·  ")}
                   </div>
                   {driverPhone && <div style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "2px" }}>📞 {driverPhone}</div>}
@@ -427,9 +422,7 @@ const RideTracking = () => {
           </div>
         </div>
         {showEmergency && <EmergencyModal onClose={() => setShowEmergency(false)} rideInfo={ride} />}
-        {showChat && bookingIdStr && (
-          <RideChat bookingId={bookingIdStr} myRole="passenger" myName={passengerName} onClose={() => setShowChat(false)} onUnreadChange={setUnread} />
-        )}
+        {showChat && bookingIdStr && <RideChat bookingId={bookingIdStr} myRole="passenger" myName={passengerName} onClose={() => setShowChat(false)} onUnreadChange={setUnread} />}
       </div>
     );
   }
