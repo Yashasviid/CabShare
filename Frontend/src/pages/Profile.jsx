@@ -166,6 +166,11 @@ const Profile = () => {
             <div style={{ fontWeight: 800, fontSize: "1.2rem", color: "var(--text)" }}>
               {user?.name || "—"}
             </div>
+            {user?.email && (
+              <div style={{ fontSize: "0.78rem", color: "var(--text-muted)", marginTop: "3px" }}>
+                {user.email}
+              </div>
+            )}
             <div style={{
               marginTop: "6px", display: "inline-flex", alignItems: "center", gap: "6px",
               padding: "3px 12px", borderRadius: "100px", fontSize: "0.72rem", fontWeight: 700,
@@ -184,7 +189,7 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* ── Rating Card ───────────────────────────────────────────────────── */}
+        {/* Rating Card */}
         <div className="glass-card fade-up" style={{ padding: "1.5rem 2rem" }}>
           <p style={{
             fontSize: "0.72rem", color: "var(--text-muted)",
@@ -210,12 +215,9 @@ const Profile = () => {
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: "1.5rem", flexWrap: "wrap" }}>
-
-              {/* Big number */}
               <div style={{
                 width: "72px", height: "72px", borderRadius: "16px",
-                background: `${ratingColor}14`,
-                border: `1px solid ${ratingColor}33`,
+                background: `${ratingColor}14`, border: `1px solid ${ratingColor}33`,
                 display: "flex", flexDirection: "column",
                 alignItems: "center", justifyContent: "center", flexShrink: 0,
               }}>
@@ -224,21 +226,13 @@ const Profile = () => {
                 </div>
                 <div style={{ fontSize: "0.6rem", color: "var(--text-muted)", marginTop: "2px" }}>out of 5</div>
               </div>
-
-              {/* Stars + label + count */}
               <div>
                 <div style={{ display: "flex", gap: "3px", marginBottom: "5px" }}>
                   {[1,2,3,4,5].map(s => (
-                    <span key={s} style={{
-                      fontSize: "1.1rem",
-                      color: s <= stars ? "#f59e0b" : "var(--border)",
-                    }}>★</span>
+                    <span key={s} style={{ fontSize: "1.1rem", color: s <= stars ? "#f59e0b" : "var(--border)" }}>★</span>
                   ))}
                   {ratingLabel && (
-                    <span style={{
-                      marginLeft: "6px", fontSize: "0.75rem", fontWeight: 700,
-                      color: ratingColor, alignSelf: "center",
-                    }}>
+                    <span style={{ marginLeft: "6px", fontSize: "0.75rem", fontWeight: 700, color: ratingColor, alignSelf: "center" }}>
                       {ratingLabel}
                     </span>
                   )}
@@ -250,7 +244,6 @@ const Profile = () => {
             </div>
           )}
         </div>
-        {/* ── End Rating Card ───────────────────────────────────────────────── */}
 
         {/* Tabs */}
         <div style={{
@@ -286,12 +279,23 @@ const Profile = () => {
                 placeholder="Your full name" />
             </div>
 
+            {/* Email — read only */}
+            <div>
+              <label style={lbl}>Email Address</label>
+              <input className="input-field" value={user?.email || ""} disabled
+                style={{ opacity: 0.6, cursor: "not-allowed" }} />
+              <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "5px" }}>
+                Email verified via OTP — cannot be changed here
+              </p>
+            </div>
+
+            {/* Phone — read only */}
             <div>
               <label style={lbl}>Phone Number</label>
               <input className="input-field" value={user?.phone || ""} disabled
                 style={{ opacity: 0.6, cursor: "not-allowed" }} />
               <p style={{ fontSize: "0.72rem", color: "var(--text-muted)", marginTop: "5px" }}>
-                Phone verified via OTP — cannot be changed here
+                Phone number cannot be changed here
               </p>
             </div>
 
@@ -341,7 +345,7 @@ const Profile = () => {
               )}
             </div>
 
-            {/* Vehicle details — only shown when role is driver */}
+            {/* Vehicle details */}
             {form.role === "driver" && (
               <div style={{
                 padding: "16px", borderRadius: "var(--radius)",

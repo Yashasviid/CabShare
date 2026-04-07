@@ -13,17 +13,20 @@ const EyeIcon = ({ open }) => open ? (
 );
 
 const Signup = () => {
-  const [step, setStep] = useState(1);
-  const [formData, setFormData] = useState({ name: "", phone: "", gender: "", password: "" });
-  const [nameError, setNameError] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
+  const [step, setStep]         = useState(1);
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", gender: "", password: "" });
+  const [nameError, setNameError]   = useState("");
+  const [emailError, setEmailError] = useState("");
+  const [phoneError, setPhoneError] = useState("");
+  const [showPassword, setShowPassword]         = useState(false);
   const [showPasswordError, setShowPasswordError] = useState(false);
-  const [otp, setOtp] = useState(["", "", "", "", "", ""]);
+  const [otp, setOtp]               = useState(["", "", "", "", "", ""]);
   const [loadingRole, setLoadingRole] = useState(null);
-  const [verifying, setVerifying] = useState(false);
-  const [role, setRole] = useState(null);
+  const [verifying, setVerifying]   = useState(false);
+  const [role, setRole]             = useState(null);
   const navigate = useNavigate();
 
+  const isValidEmail     = (e) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e);
   const isStrongPassword = (p) => /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$/.test(p);
   const passwordChecks = {
     length:    formData.password.length >= 8,
@@ -35,26 +38,37 @@ const Signup = () => {
 
   const handleNameChange = (e) => {
     const val = e.target.value;
-    if (/\d/.test(val)) {
-      setNameError("Name cannot contain numbers");
-    } else {
-      setNameError("");
-    }
+    setNameError(/\d/.test(val) ? "Name cannot contain numbers" : "");
     setFormData({ ...formData, name: val.replace(/\d/g, "") });
   };
 
+  const handleEmailChange = (e) => {
+    const val = e.target.value.toLowerCase();
+    setEmailError(val && !isValidEmail(val) ? "Enter a valid email address" : "");
+    setFormData({ ...formData, email: val });
+  };
+
+  const handlePhoneChange = (e) => {
+    const val = e.target.value.replace(/\D/g, "");
+    setPhoneError(val.length > 0 && val.length !== 10 ? "Must be exactly 10 digits" : "");
+    setFormData({ ...formData, phone: val });
+  };
+
   const sendOTP = async (selectedRole) => {
-    if (!formData.name || !formData.phone || !formData.gender || !formData.password) { alert("Please fill all details"); return; }
-    if (formData.phone.length !== 10) { alert("Enter valid 10-digit phone number"); return; }
-    if (!isStrongPassword(formData.password)) { alert("Password is not strong enough"); return; }
+    if (!formData.name || !formData.email || !formData.phone || !formData.gender || !formData.password) {
+      alert("Please fill all details"); return;
+    }
+    if (!isValidEmail(formData.email))        { alert("Enter a valid email address"); return; }
+    if (formData.phone.length !== 10)          { alert("Enter valid 10-digit phone number"); return; }
+    if (!isStrongPassword(formData.password))  { alert("Password is not strong enough"); return; }
+
     setLoadingRole(selectedRole);
     setRole(selectedRole);
     try {
-      await API.post("/auth/send-otp", { phone: "+91" + formData.phone });
+      await API.post("/auth/send-otp", { email: formData.email });
       setStep(2);
     } catch (error) {
-      console.error(error);
-      alert("Failed to send OTP");
+      alert(error.response?.data?.message || "Failed to send OTP");
     } finally { setLoadingRole(null); }
   };
 
@@ -63,15 +77,18 @@ const Signup = () => {
     if (otpCode.length !== 6) { alert("Enter complete OTP"); return; }
     setVerifying(true);
     try {
-      await API.post("/auth/verify-otp", { phone: "+91" + formData.phone, otp: otpCode });
-      const res = await API.post("/auth/register", { ...formData, phone: "+91" + formData.phone, role });
+      await API.post("/auth/verify-otp", { email: formData.email, otp: otpCode });
+      const res = await API.post("/auth/register", {
+        ...formData,
+        phone: "+91" + formData.phone,
+        role,
+      });
       sessionStorage.setItem("token", res.data.token);
       sessionStorage.setItem("user", JSON.stringify(res.data.user));
       if (role === "driver") navigate("/driver-details");
       else navigate("/passenger-dashboard");
     } catch (error) {
-      console.error(error);
-      alert("Invalid OTP");
+      alert(error.response?.data?.message || "Invalid OTP");
     } finally { setVerifying(false); }
   };
 
@@ -88,9 +105,13 @@ const Signup = () => {
       document.getElementById(`otp-${index - 1}`)?.focus();
   };
 
+  const lbl = {
+    display: "block", fontSize: "0.75rem", color: "var(--text-muted)",
+    letterSpacing: "0.1em", marginBottom: "7px", textTransform: "uppercase",
+  };
+
   return (
     <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-      <div id="recaptcha-container" />
       <div className="fade-up" style={{ maxWidth: "420px", width: "100%" }}>
 
         <div style={{ textAlign: "center", marginBottom: "2rem" }}>
@@ -98,74 +119,64 @@ const Signup = () => {
             Cab<span style={{ color: "#6366f1" }}>Share</span>
           </a>
           <p style={{ color: "var(--text-muted)", fontSize: "0.75rem", letterSpacing: "0.15em", textTransform: "uppercase", marginTop: "6px" }}>
-            {step === 1 ? "Join the Network" : "Verify your number"}
+            {step === 1 ? "Join the Network" : "Verify your email"}
           </p>
         </div>
 
         <div className="glass-card" style={{ padding: "2.5rem" }}>
 
+          {/* ── Step 1: Details ── */}
           {step === 1 && (
             <div style={{ display: "flex", flexDirection: "column", gap: "1.1rem" }}>
 
-              {/* Name */}
               <div>
-                <label>Full Name</label>
-                <input
-                  type="text"
-                  className="input-field"
-                  placeholder="Your full name"
-                  value={formData.name}
-                  onChange={handleNameChange}
-                />
-                {nameError && (
-                  <p style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>
-                    {nameError}
-                  </p>
-                )}
+                <label style={lbl}>Full Name</label>
+                <input type="text" className="input-field" placeholder="Your full name"
+                  value={formData.name} onChange={handleNameChange} />
+                {nameError && <p style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>{nameError}</p>}
               </div>
 
-              {/* Phone */}
               <div>
-                <label>Phone Number</label>
+                <label style={lbl}>Email Address</label>
+                <input type="email" className="input-field" placeholder="you@example.com"
+                  value={formData.email} onChange={handleEmailChange} />
+                {emailError && <p style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>{emailError}</p>}
+              </div>
+
+              <div>
+                <label style={lbl}>Phone Number</label>
                 <input type="tel" className="input-field" placeholder="10-digit number" maxLength={10}
-                  value={formData.phone}
-                  onChange={e => setFormData({ ...formData, phone: e.target.value.replace(/\D/g, "") })} />
+                  value={formData.phone} onChange={handlePhoneChange} />
+                {phoneError && <p style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>{phoneError}</p>}
               </div>
 
-              {/* Password with eye toggle */}
               <div>
-                <label>Password</label>
+                <label style={lbl}>Password</label>
                 <div style={{ position: "relative" }}>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    className="input-field"
+                  <input type={showPassword ? "text" : "password"} className="input-field"
                     placeholder="Min 8 characters"
                     value={formData.password}
                     onChange={e => setFormData({ ...formData, password: e.target.value })}
                     onBlur={() => setShowPasswordError(true)}
-                    style={{ paddingRight: "44px" }}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(p => !p)}
+                    style={{ paddingRight: "44px" }} />
+                  <button type="button" onClick={() => setShowPassword(p => !p)}
                     style={{ position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)", background: "none", border: "none", cursor: "pointer", color: "var(--text-muted)", display: "flex", alignItems: "center", padding: "4px" }}>
                     <EyeIcon open={showPassword} />
                   </button>
                 </div>
                 {showPasswordError && formData.password && !isStrongPassword(formData.password) && (
                   <p style={{ color: "red", fontSize: "12px", marginTop: "6px" }}>
-                    {!passwordChecks.length    ? "At least 8 characters" :
-                     !passwordChecks.uppercase ? "Add an uppercase letter" :
-                     !passwordChecks.lowercase ? "Add a lowercase letter" :
-                     !passwordChecks.number    ? "Add a number" :
-                     !passwordChecks.special   ? "Add a special character (@$!%*?&)" : ""}
+                    {!passwordChecks.length    ? "At least 8 characters"              :
+                     !passwordChecks.uppercase ? "Add an uppercase letter"            :
+                     !passwordChecks.lowercase ? "Add a lowercase letter"             :
+                     !passwordChecks.number    ? "Add a number"                       :
+                                                 "Add a special character (@$!%*?&)"}
                   </p>
                 )}
               </div>
 
-              {/* Gender */}
               <div>
-                <label style={{ display: "block", fontSize: "0.75rem", color: "var(--text-muted)", letterSpacing: "0.1em", marginBottom: "7px", textTransform: "uppercase" }}>Gender</label>
+                <label style={lbl}>Gender</label>
                 <select className="input-field" value={formData.gender}
                   onChange={e => setFormData({ ...formData, gender: e.target.value })}>
                   <option value="">Select gender</option>
@@ -179,7 +190,7 @@ const Signup = () => {
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
                 {[
-                  { label: "Offer a Ride", thisRole: "driver" },
+                  { label: "Offer a Ride", thisRole: "driver"    },
                   { label: "Find a Ride",  thisRole: "passenger" },
                 ].map(({ label, thisRole }) => (
                   <button key={thisRole} onClick={() => sendOTP(thisRole)} disabled={loadingRole !== null}
@@ -199,12 +210,16 @@ const Signup = () => {
             </div>
           )}
 
+          {/* ── Step 2: Email OTP ── */}
           {step === 2 && (
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "1.5rem" }}>
               <div style={{ textAlign: "center" }}>
-                <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 0.75rem", fontSize: "0.75rem", color: "var(--primary)", fontWeight: 800, letterSpacing: "0.05em" }}>SMS</div>
-                <p style={{ color: "var(--text)", fontWeight: 700, fontSize: "1rem" }}>OTP sent to +91 {formData.phone}</p>
-                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "4px" }}>Enter the 6-digit code from your SMS</p>
+                <div style={{ width: "52px", height: "52px", borderRadius: "50%", background: "rgba(99,102,241,0.1)", border: "1px solid rgba(99,102,241,0.2)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 0.75rem", fontSize: "0.7rem", color: "var(--primary)", fontWeight: 800, letterSpacing: "0.05em" }}>OTP</div>
+                <p style={{ color: "var(--text)", fontWeight: 700, fontSize: "1rem" }}>Check your inbox</p>
+                <p style={{ color: "var(--text-muted)", fontSize: "0.85rem", marginTop: "4px" }}>
+                  We sent a 6-digit code to<br />
+                  <strong style={{ color: "var(--text)" }}>{formData.email}</strong>
+                </p>
               </div>
               <div style={{ display: "flex", gap: "10px" }}>
                 {otp.map((digit, i) => (
@@ -223,7 +238,7 @@ const Signup = () => {
               </button>
               <button onClick={() => { setStep(1); setOtp(["","","","","",""]); }}
                 style={{ background: "none", border: "none", color: "var(--text-muted)", cursor: "pointer", fontSize: "0.85rem", textDecoration: "underline" }}>
-                Change number
+                Change details
               </button>
             </div>
           )}
